@@ -13,6 +13,23 @@ class Animal(db.Model):
     health_status = db.Column(db.String(100), default="Healthy")
     notes = db.Column(db.Text, nullable=True)
 
+    @property
+    def age(self):
+        if not self.birth_date:
+            return None
+        today = date.today()
+        delta = today - self.birth_date
+
+        # Simple algorithm to express in days/months/years
+        if delta.days < 30:
+            return f"{delta.days} day(s)"
+        elif delta.days < 365:
+            months = delta.days // 30
+            return f"{months} month(s)"
+        else:
+            years = delta.days // 365
+            return f"{years} year(s)"
+
     # Relationships
     treatments = db.relationship("Treatment", backref="animal", lazy=True)
     sale = db.relationship("Sale", backref="animal", uselist=False)
@@ -26,6 +43,7 @@ class Animal(db.Model):
             "tag_id": self.tag_id,
             "breed": self.breed,
             "sex": self.sex,
+            "age": self.age,
             "birth_date": self.birth_date,
             "weight": self.weight,
             "health_status": self.health_status,
