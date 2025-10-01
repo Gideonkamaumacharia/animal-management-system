@@ -25,7 +25,14 @@ def add_animal():
         birth_date=date.fromisoformat(data["birth_date"]) if "birth_date" in data else None,
         weight=data["weight"],
         health_status=data["health_status"],
-        notes=data.get("notes", "")
+        notes=data.get("notes", ""),
+        category=data.get("category", ""),
+        image_url=data.get("image_url", ""),
+        status=data.get("status", "active"),
+        mother_id=data.get("mother_id"),
+        father_id=data.get("father_id"),
+        created_at=data.get("created_at"),
+        updated_at=data.get("updated_at")   
     )
     db.session.add(new_animal)
     db.session.commit()
@@ -42,14 +49,20 @@ def update_animal(animal_id):
     animal.weight = data.get("weight", animal.weight)
     animal.health_status = data.get("health_status", animal.health_status)
     animal.notes = data.get("notes", animal.notes)
+    animal.category = data.get("category", animal.category)
+    animal.image_url = data.get("image_url", animal.image_url)
+    animal.status = data.get("status", animal.status)
+    animal.mother_id = data.get("mother_id", animal.mother_id)
+    animal.father_id = data.get("father_id", animal.father_id)
+    animal.updated_at = data.get("updated_at", animal.updated_at)   
 
     db.session.commit()
     return jsonify(animal.to_dict(), {"message": "Animal updated successfully"}), 200
 
 
-@animals_bp.route("/<int:animal_id>/delete", methods=["DELETE"])
-def delete_animal(animal_id):
-    animal = Animal.query.get_or_404(animal_id)
-    db.session.delete(animal)
-    db.session.commit()
-    return jsonify({"message": "Animal deleted successfully"}), 204 
+# @animals_bp.route("/<int:animal_id>/delete", methods=["DELETE"])
+# def delete_animal(animal_id):
+#     animal = Animal.query.get_or_404(animal_id)
+#     db.session.delete(animal)
+#     db.session.commit()
+#     return jsonify({"message": "Animal deleted successfully"}), 204 
