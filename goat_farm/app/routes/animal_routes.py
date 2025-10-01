@@ -29,25 +29,26 @@ def add_animal():
     )
     db.session.add(new_animal)
     db.session.commit()
-    return jsonify(new_animal.to_dict()), 201
+    return jsonify(new_animal.to_dict(), {"message": "Animal added successfully"}), 201
 
-@animals_bp.route("/<int:animal_id>/update", methods=["PUT"])
+@animals_bp.route("/<int:animal_id>/update", methods=["PATCH"])
 def update_animal(animal_id):
-    # from app import db
     data = request.get_json()
     animal = Animal.query.get_or_404(animal_id)
-    animal.tag_id = data["tag_id"]
-    animal.breed = data["breed"]
-    animal.age = data["age"]
-    animal.weight = data["weight"]
-    animal.health_status = data["health_status"]
+    animal.tag_id = data.get("tag_id", animal.tag_id)
+    animal.breed = data.get("breed", animal.breed)
+    animal.sex = data.get("sex", animal.sex)
+    animal.birth_date = date.fromisoformat(data["birth_date"]) if "birth_date" in data else animal.birth_date
+    animal.weight = data.get("weight", animal.weight)
+    animal.health_status = data.get("health_status", animal.health_status)
+    animal.notes = data.get("notes", animal.notes)
+
     db.session.commit()
-    return jsonify(animal.to_dict())
+    return jsonify(animal.to_dict(), {"message": "Animal updated successfully"}), 200
 
 
 @animals_bp.route("/<int:animal_id>/delete", methods=["DELETE"])
 def delete_animal(animal_id):
-    # from app import db
     animal = Animal.query.get_or_404(animal_id)
     db.session.delete(animal)
     db.session.commit()
