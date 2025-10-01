@@ -1,5 +1,5 @@
 from datetime import date
-from app import db
+from app.extensions import db
 
 class Animal(db.Model):
     __tablename__ = "animals"
