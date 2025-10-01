@@ -7,11 +7,22 @@ class Animal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tag_id = db.Column(db.String(50), unique=True, nullable=False)
     breed = db.Column(db.String(50), nullable=False)
-    sex = db.Column(db.String(10), nullable=False)  # "Male" or "Female"
+    sex = db.Column(db.String(10), nullable=False)  
     birth_date = db.Column(db.Date, nullable=True)
     weight = db.Column(db.Float, nullable=True)
     health_status = db.Column(db.String(100), default="Healthy")
     notes = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(50), nullable=True)  # Kid, Doe, Buck,dairy, meat, breeding, etc.
+    image_url = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    status= db.Column(db.String(20), default="Active")  # Active, Sold, Deceased, etc.
+
+    mother_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
+    father_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
+
+    mother = db.relationship("Animal", remote_side=[id], foreign_keys=[mother_id], backref="offspring", lazy=True)
+    father = db.relationship("Animal", remote_side=[id], foreign_keys=[father_id], backref="sired", lazy=True)
 
     @property
     def age(self):
@@ -20,7 +31,7 @@ class Animal(db.Model):
         today = date.today()
         delta = today - self.birth_date
 
-        # Simple algorithm to express in days/months/years
+       
         if delta.days < 30:
             return f"{delta.days} day(s)"
         elif delta.days < 365:
@@ -48,6 +59,13 @@ class Animal(db.Model):
             "weight": self.weight,
             "health_status": self.health_status,
             "notes": self.notes,
+            "category": self.category,
+            "image_url": self.image_url,
+            "status": self.status,
+            "mother_id": self.mother_id,
+            "father_id": self.father_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,  
             "treatments": [t.to_dict() for t in self.treatments],
             "sale": self.sale.to_dict() if self.sale else None
         }
@@ -58,7 +76,7 @@ class Treatment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     animal_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
-    treatment_type = db.Column(db.String(50), nullable=False)  # Vaccination, Deworming, etc.
+    treatment_type = db.Column(db.String(50), nullable=False)  
     treatment_date = db.Column(db.Date, default=date.today)
     next_due_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, nullable=True)
