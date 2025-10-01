@@ -1,8 +1,6 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-
-# initialize db
-db = SQLAlchemy()
+from app.routes import all_blueprints
+from app.extensions import db ,migrate
 
 def create_app(config_class="app.config.Config"):
     app = Flask(__name__)
@@ -10,13 +8,14 @@ def create_app(config_class="app.config.Config"):
 
     # Initialize extensions
     db.init_app(app)
+    migrate.init_app(app, db)
 
     # Import models so they are registered with SQLAlchemy
     from app import models
 
     # Register routes (blueprints)
-    from app.routes import main
-    app.register_blueprint(main)
+    for bp in all_blueprints:
+        app.register_blueprint(bp)  
 
     with app.app_context():
         db.create_all()
