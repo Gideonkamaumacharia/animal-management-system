@@ -78,11 +78,33 @@ class Treatment(db.Model):
     animal_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
     treatment_type = db.Column(db.String(50), nullable=False)  
     treatment_date = db.Column(db.Date, default=date.today)
+    medication = db.Column(db.String(100), nullable=True)
+    dosage = db.Column(db.String(50), nullable=True)
     next_due_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, nullable=True)
 
+    # user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    # user = db.relationship("User", backref="treatments", lazy=True)
+
+    # animals = db.relationship("Animal", backref="treatments", lazy=True)
+
     def __repr__(self):
         return f"<Treatment {self.treatment_type} for Animal {self.animal_id}>"
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "animal_id": self.animal_id,
+            "treatment_type": self.treatment_type,
+            "treatment_date": self.treatment_date,
+            "medication": self.medication,
+            "dosage": self.dosage,  
+            "next_due_date": self.next_due_date,
+            "notes": self.notes,
+            #"treated_by": self.user_id
+        }
+    
 
 
 class Sale(db.Model):
@@ -119,6 +141,17 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    # created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    # updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())  
+
 
     def __repr__(self):
         return f"<User {self.email}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "is_admin": self.is_admin
+        }
