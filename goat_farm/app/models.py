@@ -1,5 +1,6 @@
 from datetime import date
 from app.extensions import db
+from sqlalchemy import event
 
 class Animal(db.Model):
     __tablename__ = "animals"
@@ -106,18 +107,61 @@ class Treatment(db.Model):
         }
     
 
-
+#Havent migrated most of these changes to the db yet
 class Sale(db.Model):
     __tablename__ = "sales"
 
     id = db.Column(db.Integer, primary_key=True)
-    animal_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
+    animal_id = db.Column(db.Integer, db.ForeignKey("animals.id"), unique=True, nullable=False)  # one-to-one
     buyer_name = db.Column(db.String(100), nullable=False)
-    sale_date = db.Column(db.Date, default=date.today)
+    buyer_contact = db.Column(db.String(100), nullable=True)
+    sale_date = db.Column(db.Date, default=date.today, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(50), nullable=True)  # e.g. Mpesa, Bank, Cash
+    payment_received = db.Column(db.Boolean, default=True)  # handle partial/pending payments
+    receipt_number = db.Column(db.String(50), unique=True, nullable=True)
+    purpose = db.Column(db.String(50), nullable=True)  # breeding, meat, dairy, etc.
+    status = db.Column(db.String(20), default="completed")  # completed, pending, cancelled
+    notes = db.Column(db.Text, nullable=True)
+
+    #user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     def __repr__(self):
         return f"<Sale Animal {self.animal_id} - {self.price}>"
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "animal_id": self.animal_id,
+            "buyer_name": self.buyer_name,
+            "buyer_contact": self.buyer_contact,
+            "sale_date": self.sale_date.isoformat() if self.sale_date else None,
+            "price": self.price,
+            "payment_method": self.payment_method,
+            "payment_received": self.payment_received,
+            "receipt_number": self.receipt_number,
+            "purpose": self.purpose,
+            "status": self.status,
+            "notes": self.notes,
+            #"user_id": self.user_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+# Automatically generate a receipt number after a sale is inserted
+@event.listens_for(Sale, "after_insert")
+def generate_receipt(mapper, connection, target):
+    receipt = f"RCPT-{target.id:05d}"
+    connection.execute(
+        Sale.__table__.update()
+        .where(Sale.id == target.id)
+            .values(receipt_number=receipt)
+        )
+
+
 
 
 class Expense(db.Model):
