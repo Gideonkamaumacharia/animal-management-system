@@ -119,7 +119,6 @@ class Treatment(db.Model):
             "cost": self.cost,
             #"treated_by": self.user_id
         }
-    
 class Sale(db.Model):
     __tablename__ = "sales"
 
