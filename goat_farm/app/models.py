@@ -18,6 +18,11 @@ class Animal(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     status= db.Column(db.String(20), default="Active")  # Active, Sold, Deceased, etc.
+    acquisition_date = db.Column(db.Date, nullable=True)
+    acquisition_price = db.Column(db.Float, nullable=True)
+    source = db.Column(db.String(100), nullable=True) 
+    # milk_yield = db.Column(db.Float, nullable=True)  # liters per day (latest or average)
+    offspring_count = db.Column(db.Integer, default=0)
 
     mother_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
     father_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
@@ -68,7 +73,11 @@ class Animal(db.Model):
             "created_at": self.created_at,
             "updated_at": self.updated_at,  
             "treatments": [t.to_dict() for t in self.treatments],
-            "sale": self.sale.to_dict() if self.sale else None
+            "sale": self.sale.to_dict() if self.sale else None,
+            "acquisition_date": self.acquisition_date,
+            "acquisition_price": self.acquisition_price,
+            "source": self.source,
+            "offspring_count": len(self.offspring) if self.offspring else 0
         }
 
 
@@ -82,7 +91,10 @@ class Treatment(db.Model):
     medication = db.Column(db.String(100), nullable=True)
     dosage = db.Column(db.String(50), nullable=True)
     next_due_date = db.Column(db.Date, nullable=True)
-    notes = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)  #Extra details, context, instructions
+    outcome = db.Column(db.String(100), nullable=True)  # e.g. Recovered, Ongoing, etc.
+    cost = db.Column(db.Float, nullable=True)
+
 
     # user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
@@ -103,11 +115,11 @@ class Treatment(db.Model):
             "dosage": self.dosage,  
             "next_due_date": self.next_due_date,
             "notes": self.notes,
+            "outcome": self.outcome,
+            "cost": self.cost,
             #"treated_by": self.user_id
         }
     
-
-#Havent migrated most of these changes to the db yet
 class Sale(db.Model):
     __tablename__ = "sales"
 
@@ -122,7 +134,9 @@ class Sale(db.Model):
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     purpose = db.Column(db.String(50), nullable=True)  # breeding, meat, dairy, etc.
     status = db.Column(db.String(20), default="completed")  # completed, pending, cancelled
+    profit = db.Column(db.Float, nullable=True)  # Sale price - acquisition price
     notes = db.Column(db.Text, nullable=True)
+
 
     #user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
@@ -146,6 +160,7 @@ class Sale(db.Model):
             "purpose": self.purpose,
             "status": self.status,
             "notes": self.notes,
+            "profit": self.profit,
             #"user_id": self.user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
