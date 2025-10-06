@@ -7,12 +7,15 @@ animals_bp = Blueprint("animal", __name__, url_prefix="/animals")
 
 @animals_bp.route("/get", methods=["GET"])
 def get_animals():
-    animals = Animal.query.all()
+    animals = Animal.query.filter(Animal.status == "Active").all()
     return jsonify([animal.to_dict() for animal in animals]), 200
+
 
 @animals_bp.route("/<int:animal_id>", methods=["GET"])
 def get_animal(animal_id):
     animal = Animal.query.get_or_404(animal_id)
+    if animal.status != "Active":
+        return jsonify({"message": "Animal is not active"}), 404
     return jsonify(animal.to_dict()), 200
 
 @animals_bp.route("/add", methods=["POST"])
@@ -28,7 +31,11 @@ def add_animal():
         notes=data.get("notes", ""),
         category=data.get("category", ""),
         image_url=data.get("image_url", ""),
-        status=data.get("status", "active"),
+        status = data.get("status", "Active"),
+        acquisition_date=date.fromisoformat(data["acquisition_date"]) if "acquisition_date" in data else None,
+        acquisition_price=data.get("acquisition_price"),
+        source=data.get("source"),
+        offspring_count= data.get("offspring_count", 0),
         mother_id=data.get("mother_id"),
         father_id=data.get("father_id"),
         created_at=data.get("created_at"),
