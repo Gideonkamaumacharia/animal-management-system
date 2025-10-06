@@ -17,25 +17,57 @@ def get_sale(sale_id):
 
 @sales_bp.route("/make", methods=["POST"])
 def create_sale():
-    data = request.json
-    new_sale = Sale(
-        animal_id=data["animal_id"],
-        buyer_name=data["buyer_name"],
-        buyer_contact=data["buyer_contact"],
-        sale_date=data["sale_date"],
-        price=data["price"],
-        payment_method=data["payment_method"],
-        payment_received=data["payment_received"],
-        purpose=data["purpose"],
-        notes=data["notes"]
+    data = request.get_json()
+
+    animal_id = data.get("animal_id")
+    buyer_name = data.get("buyer_name")
+    buyer_contact = data.get("buyer_contact")
+    sale_date = date.fromisoformat(data["sale_date"]) if "sale_date" in data else None
+    price = data.get("price")
+    payment_method = data.get("payment_method")
+    payment_received = data.get("payment_received", True)
+    receipt_number = data.get("receipt_number")
+    purpose = data.get("purpose")
+    status = data.get("status", "Active")
+    #profit = data.get("profit")
+    notes = data.get("notes")
+
+    # 1️⃣ Get the animal
+    animal = Animal.query.get(animal_id)
+    if not animal:
+        return jsonify({"error": "Animal not found"}), 404
+
+    if animal.status == "Sold":
+        return jsonify({"error": "Animal already sold"}), 400
+
+    # 2️⃣ Create Sale
+    sale = Sale(
+        animal_id=animal_id,
+        buyer_name=buyer_name,
+        buyer_contact=buyer_contact,
+        sale_date=sale_date,
+        price=price,
+        payment_method=payment_method,
+        payment_received=payment_received,
+        receipt_number=receipt_number,
+        purpose=purpose,
+        status=status,
+        profit=price - (animal.acquisition_price or 0),
+        notes=notes
     )
-    db.session.add(new_sale)
+
+    # 3️⃣ Update animal status
+    animal.status = "Sold"
+
+    db.session.add(sale)
     db.session.commit()
-    return jsonify(new_sale.to_dict()), 201
+
+    return jsonify({"message": "Sale created successfully", "sale": sale.to_dict()}), 201
+
 
 @sales_bp.route("/<int:sale_id>", methods=["PATCH"])
-def update_sale(sale_id):   
-    data = request.json
+def update_sale(sale_id):
+    data = request.get_json()
     sale = Sale.query.get_or_404(sale_id)
     sale.animal_id = data.get("animal_id", sale.animal_id)
     sale.buyer_name = data.get("buyer_name", sale.buyer_name)
