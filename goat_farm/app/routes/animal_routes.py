@@ -66,10 +66,24 @@ def update_animal(animal_id):
     db.session.commit()
     return jsonify(animal.to_dict(), {"message": "Animal updated successfully"}), 200
 
+# This route is for handling archiving (soft delete)
+@animals_bp.route("/archive", methods=["GET"])
+def get_archived_animals():
+    status_filter = request.args.get("status") #means that if status is provided in the query params(url), we filter by it
+    query = Animal.query
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    animals = query.all()
+    return jsonify([animal.to_dict() for animal in animals]), 200
 
-# @animals_bp.route("/<int:animal_id>/delete", methods=["DELETE"])
-# def delete_animal(animal_id):
-#     animal = Animal.query.get_or_404(animal_id)
-#     db.session.delete(animal)
-#     db.session.commit()
-#     return jsonify({"message": "Animal deleted successfully"}), 204 
+@animals_bp.route("/deceased", methods=["GET"])
+def get_deceased_animals():
+    status_filter = request.args.get("status")
+
+    if status_filter:
+        animals = Animal.query.filter_by(status=status_filter).all()
+    else:
+        # Default: show only active animals
+        animals = Animal.query.filter(Animal.status != "Deceased").all()
+
+    return jsonify([animal.to_dict() for animal in animals]), 200
