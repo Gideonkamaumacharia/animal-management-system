@@ -39,6 +39,12 @@ def create_sale():
 
     if animal.status == "Sold":
         return jsonify({"error": "Animal already sold"}), 400
+    
+    total_expenses = sum(exp.amount for exp in animal.expenses) if animal.expenses else 0.0
+
+    # Calculate profit
+    acquisition_price = animal.acquisition_price or 0.0
+    profit = price - (acquisition_price + total_expenses)
 
     # 2️⃣ Create Sale
     sale = Sale(
@@ -52,7 +58,7 @@ def create_sale():
         receipt_number=receipt_number,
         purpose=purpose,
         status=status,
-        profit=price - (animal.acquisition_price or 0),
+        profit=profit,
         notes=notes
     )
 
