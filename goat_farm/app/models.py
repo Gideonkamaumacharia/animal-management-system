@@ -187,8 +187,44 @@ class Expense(db.Model):
     date = db.Column(db.Date, default=date.today)
     notes = db.Column(db.Text, nullable=True)
 
+     # Link expense to a specific animal (optional)
+    animal_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
+    animal = db.relationship("Animal", backref="expenses", lazy=True)
+
+    # Optional: track which user/admin logged the expense
+    # user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
     def __repr__(self):
         return f"<Expense {self.expense_type} - {self.amount}>"
+    
+    @event.listens_for(Treatment, "after_insert")
+    def add_treatment_expense(mapper, connection, target):
+        if target.cost and target.cost > 0:
+            connection.execute(
+                Expense.__table__.insert().values(
+                    expense_type="Treatment",
+                    amount=target.cost,
+                    date=target.treatment_date,
+                    animal_id=target.animal_id,
+                    notes=f"{target.treatment_type} ({target.medication})"
+                )   
+            )
+
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "expense_type": self.expense_type,
+            "amount": self.amount,
+            "date": self.date,
+            "notes": self.notes,
+            "animal_id": self.animal_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        }
 
 
 class User(db.Model):
