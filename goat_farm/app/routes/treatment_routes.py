@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from app.models import Treatment
 from app.extensions import db
 from datetime import date   
+from app.models import Animal
 
 treatments_bp = Blueprint("treatments", __name__, url_prefix="/treatments")
 
@@ -31,6 +32,10 @@ def get_treatment(treatment_id):
 @treatments_bp.route("/add", methods=["POST"])
 def add_treatment():
     data = request.get_json()
+
+    animal = Animal.query.get(data.get("animal_id"))
+    if animal.status != "Active":
+        return jsonify({"error": "Cannot add treatment to inactive animal"}), 400
 
     treatment_type = data.get("treatment_type")
     medication = data.get("medication")
