@@ -200,20 +200,6 @@ class Expense(db.Model):
     def __repr__(self):
         return f"<Expense {self.expense_type} - {self.amount}>"
     
-    @event.listens_for(Treatment, "after_insert")
-    def add_treatment_expense(mapper, connection, target):
-        if target.cost and target.cost > 0:
-            connection.execute(
-                Expense.__table__.insert().values(
-                    expense_type="Treatment",
-                    amount=target.cost,
-                    date=target.treatment_date,
-                    animal_id=target.animal_id,
-                    notes=f"{target.treatment_type} ({target.medication})"
-                )   
-            )
-
-
     def to_dict(self):
         return {
             "id": self.id,
@@ -226,6 +212,22 @@ class Expense(db.Model):
             "updated_at": self.updated_at
         }
 
+
+@event.listens_for(Treatment, "after_insert")
+def add_treatment_expense(mapper, connection, target):
+    if target.cost and target.cost > 0:
+        connection.execute(
+            Expense.__table__.insert().values(
+                expense_type="Treatment",
+                amount=target.cost,
+                date=target.treatment_date,
+                animal_id=target.animal_id,
+                notes=f"{target.treatment_type} ({target.medication})"
+            )   
+        )
+
+
+   
 
 class User(db.Model):
     __tablename__ = "users"
