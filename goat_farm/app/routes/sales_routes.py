@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request
 from app.models import Sale, Animal
-from datetime import date
+from datetime import date,datetime,timedelta
 from app.extensions import db
+from app.models import Expense
+from sqlalchemy import func,case
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")    
 
@@ -29,10 +31,8 @@ def create_sale():
     receipt_number = data.get("receipt_number")
     purpose = data.get("purpose")
     status = data.get("status", "Active")
-    #profit = data.get("profit")
     notes = data.get("notes")
 
-    # 1️⃣ Get the animal
     animal = Animal.query.get(animal_id)
     if not animal:
         return jsonify({"error": "Animal not found"}), 404
@@ -40,13 +40,11 @@ def create_sale():
     if animal.status == "Sold":
         return jsonify({"error": "Animal already sold"}), 400
     
-    total_expenses = sum(exp.amount for exp in animal.expenses) if animal.expenses else 0.0
+    total_expenses = db.session.query(db.func.sum(Expense.amount)).filter_by(animal_id=animal.id).scalar() or 0
 
-    # Calculate profit
     acquisition_price = animal.acquisition_price or 0.0
     profit = price - (acquisition_price + total_expenses)
 
-    # 2️⃣ Create Sale
     sale = Sale(
         animal_id=animal_id,
         buyer_name=buyer_name,
@@ -62,7 +60,6 @@ def create_sale():
         notes=notes
     )
 
-    # 3️⃣ Update animal status
     animal.status = "Sold"
 
     db.session.add(sale)
@@ -70,6 +67,35 @@ def create_sale():
 
     return jsonify({"message": "Sale created successfully", "sale": sale.to_dict()}), 201
 
+@sales_bp.route("/total_profit", methods=["GET"])
+def get_total_profit():
+    last_thirty_days = datetime.utcnow() - timedelta(days=30)
+    profit_for_the_last_30_days = db.session.query(
+        db.func.sum(Sale.profit)
+    ).filter(Sale.sale_date >= last_thirty_days).scalar() or 0.0
+
+    annual_profit = db.session.query(
+        db.func.sum(Sale.profit)
+    ).filter(Sale.sale_date >= datetime(datetime.utcnow().year, 1, 1)).scalar() or 0.0
+
+    total_profit = db.session.query(
+        db.func.sum(Sale.profit)
+    ).scalar() or 0.0
+
+    return jsonify(
+        {
+            "total_profit": profit_for_the_last_30_days,
+            "annual_profit": annual_profit,
+            "lifetime_profit": total_profit
+        }), 200
+
+# A list of recent sales.
+
+@sales_bp.route("/recent", methods=["GET"])
+def get_recent_sales():
+
+    recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(2).all()
+    return jsonify([sale.to_dict() for sale in recent_sales]), 200
 
 @sales_bp.route("/<int:sale_id>", methods=["PATCH"])
 def update_sale(sale_id):
@@ -88,68 +114,38 @@ def update_sale(sale_id):
     db.session.commit()
     return jsonify(sale.to_dict()), 200
 
-@sales_bp.route("/<int:sale_id>", methods=["DELETE"])
-def delete_sale(sale_id):
-    sale = Sale.query.get_or_404(sale_id)
-    db.session.delete(sale)
-    db.session.commit()
-    return jsonify({"message": "Sale deleted successfully"}), 200   
-
-@sales_bp.route("/animal/<int:animal_id>", methods=["GET"])
-def get_sales_by_animal(animal_id):
-    sales = Sale.query.filter_by(animal_id=animal_id).all()
-    return jsonify([sale.to_dict() for sale in sales]), 200 
-
-@sales_bp.route("/animal/<int:animal_id>/total", methods=["GET"])
-def get_total_sales_by_animal(animal_id):   
-    total_sales = db.session.query(db.func.sum(Sale.price)).filter_by(animal_id=animal_id).scalar() or 0.0
-    return jsonify({"animal_id": animal_id, "total_sales": total_sales}), 200   
-
-@sales_bp.route("/total", methods=["GET"])
-def get_total_sales():
-    total_sales = db.session.query(db.func.sum(Sale.price)).scalar() or 0.0
-    return jsonify({"total_sales": total_sales}), 200   
-
-@sales_bp.route("/recent", methods=["GET"])
-def get_recent_sales():
-    recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
-    return jsonify([sale.to_dict() for sale in recent_sales]), 200      
-
-@sales_bp.route("/animal/<int:animal_id>/mark_as_sold", methods=["POST"])
-def mark_animal_as_sold(animal_id):
-    animal = Animal.query.get_or_404(animal_id)
-    if animal.status == "sold":
-        return jsonify({"message": "Animal is already marked as sold"}), 400
-    animal.status = "sold"
-    db.session.commit()
-    return jsonify({"message": f"Animal {animal_id} marked as sold"}), 200  
-
-@sales_bp.route("/animal/<int:animal_id>/mark_as_available", methods=["POST"])
-def mark_animal_as_available(animal_id):
-    animal = Animal.query.get_or_404(animal_id)
-    if animal.status == "active":
-        return jsonify({"message": "Animal is already marked as available"}), 400
-    animal.status = "active"
-    db.session.commit()
-    return jsonify({"message": f"Animal {animal_id} marked as available"}), 200 
-
+ 
 @sales_bp.route("/stats/daily", methods=["GET"])
-def get_daily_sales_stats():    
-    daily_stats = db.session.query(
-        Sale.sale_date,
-        db.func.count(Sale.id).label("total_sales"),
-        db.func.sum(Sale.price).label("total_revenue")
-    ).group_by(Sale.sale_date).all()
-    
+def get_daily_sales_stats():
+    # Perform a LEFT JOIN between Sale and Expense tables
+    daily_stats = (
+        db.session.query(
+            Sale.sale_date.label("sale_date"),
+            func.count(Sale.id).label("total_sales"),
+            func.sum(Sale.price).label("total_revenue"),
+            func.coalesce(func.sum(Expense.amount), 0).label("total_expenses"),
+            (
+                func.sum(Sale.price) - func.coalesce(func.sum(Expense.amount), 0)
+            ).label("total_profit")
+        )
+        .outerjoin(Expense, Sale.animal_id == Expense.animal_id)
+        .group_by(Sale.sale_date)
+        .order_by(Sale.sale_date.desc())
+        .all()
+    )
+
     result = [
         {
-            "sale_date": stat.sale_date.isoformat() if stat.sale_date else None,
+            "sale_date": stat.sale_date.isoformat(),
             "total_sales": stat.total_sales,
-            "total_revenue": stat.total_revenue
+            "total_revenue": stat.total_revenue,
+            "total_expenses": stat.total_expenses,
+            "total_profit": stat.total_profit
         }
         for stat in daily_stats
     ]
-    return jsonify(result), 200 
+
+    return jsonify(result), 200
 
 @sales_bp.route("/stats/monthly", methods=["GET"])
 def get_monthly_sales_stats():  
@@ -266,3 +262,19 @@ def search_sales():
     sales = Sale.query.filter(*filters).all()
     return jsonify([sale.to_dict() for sale in sales]), 200
 
+# @sales_bp.route("/<int:sale_id>", methods=["DELETE"])
+# def delete_sale(sale_id):
+#     sale = Sale.query.get_or_404(sale_id)
+#     db.session.delete(sale)
+#     db.session.commit()
+#     return jsonify({"message": "Sale deleted successfully"}), 200   
+
+# @sales_bp.route("/animal/<int:animal_id>", methods=["GET"])
+# def get_sales_by_animal(animal_id):
+#     sales = Sale.query.filter_by(animal_id=animal_id).all()
+#     return jsonify([sale.to_dict() for sale in sales]), 200 
+
+# @sales_bp.route("/animal/<int:animal_id>/total", methods=["GET"])
+# def get_total_sales_by_animal(animal_id):   
+#     total_sales = db.session.query(db.func.sum(Sale.price)).filter_by(animal_id=animal_id).scalar() or 0.0
+#     return jsonify({"animal_id": animal_id, "total_sales": total_sales}), 200  
