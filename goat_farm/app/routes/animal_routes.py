@@ -87,3 +87,12 @@ def get_deceased_animals():
         animals = Animal.query.filter(Animal.status != "Deceased").all()
 
     return jsonify([animal.to_dict() for animal in animals]), 200
+
+@animals_bp.route("/total/animals", methods=["GET"])
+def get_total_animals():
+    total = Animal.query.count()
+
+    category_counts = db.session.query(Animal.category, db.func.count(Animal.id)).group_by(Animal.category).all()
+    category_summary = {category or "uncategorized": count for category, count in category_counts}
+    
+    return jsonify({"total_animals": total, "category_summary": category_summary}), 200
