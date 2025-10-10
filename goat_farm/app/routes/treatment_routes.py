@@ -61,7 +61,8 @@ def add_treatment():
         dosage=dosage,
         treatment_date=data.get("treatment_date"),
         next_due_date=data.get("next_due_date"),
-        notes=data.get("notes")
+        notes=data.get("notes"),
+        cost=data.get("cost") 
         # user_id=data.get("user_id"),
     )
 
@@ -69,6 +70,14 @@ def add_treatment():
     db.session.commit()
 
     return jsonify({"message": "Treatment added successfully"}), 201
+
+# A list of upcoming treatments (where next_due_date is in the near future).
+@treatments_bp.route("/upcoming", methods=["GET"])
+def get_upcoming_treatments():
+    upcoming_treatments = Treatment.query.filter(
+        Treatment.next_due_date >= date.today()
+    ).all()
+    return jsonify([treatment.to_dict() for treatment in upcoming_treatments]), 200
 
 @treatments_bp.route("/<int:treatment_id>/update", methods=["PATCH"])
 def update_treatment(treatment_id):         
