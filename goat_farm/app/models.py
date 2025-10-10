@@ -119,6 +119,7 @@ class Treatment(db.Model):
             "cost": self.cost,
             #"treated_by": self.user_id
         }
+    
 class Sale(db.Model):
     __tablename__ = "sales"
 
@@ -176,7 +177,19 @@ def generate_receipt(mapper, connection, target):
         )
 
 
-
+# When a Treatment with a cost is added, create a corresponding Expense entry automatically
+@event.listens_for(Treatment, "after_insert")
+def add_treatment_expense(mapper, connection, target):
+    if target.cost and target.cost > 0:
+        connection.execute(
+            Expense.__table__.insert().values(
+                expense_type="Treatment",
+                amount=target.cost,
+                date=target.treatment_date,
+                animal_id=target.animal_id,
+                notes=f"{target.treatment_type} ({target.medication})"
+            )   
+        )
 
 class Expense(db.Model):
     __tablename__ = "expenses"
@@ -211,20 +224,6 @@ class Expense(db.Model):
             "created_at": self.created_at,
             "updated_at": self.updated_at
         }
-
-
-@event.listens_for(Treatment, "after_insert")
-def add_treatment_expense(mapper, connection, target):
-    if target.cost and target.cost > 0:
-        connection.execute(
-            Expense.__table__.insert().values(
-                expense_type="Treatment",
-                amount=target.cost,
-                date=target.treatment_date,
-                animal_id=target.animal_id,
-                notes=f"{target.treatment_type} ({target.medication})"
-            )   
-        )
 
 
    
