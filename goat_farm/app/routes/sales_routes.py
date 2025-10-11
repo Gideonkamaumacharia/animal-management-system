@@ -147,28 +147,70 @@ def get_daily_sales_stats():
 
     return jsonify(result), 200
 
+from sqlalchemy import func, and_
+from flask import jsonify
+
 @sales_bp.route("/stats/monthly", methods=["GET"])
-def get_monthly_sales_stats():  
-    monthly_stats = db.session.query(
-        db.func.strftime("%Y-%m", Sale.sale_date).label("sale_month"),
-        db.func.count(Sale.id).label("total_sales"),
-        db.func.sum(Sale.price).label("total_revenue")
-    ).group_by("sale_month").all()
-    
+def get_monthly_sales_stats():
+    # 1) Build a per-sale aggregation: sale price + sum of expenses for that animal up to the sale date
+    per_sale = (
+        db.session.query(
+            Sale.id.label("sale_id"),
+            Sale.animal_id.label("animal_id"),
+            Sale.sale_date.label("sale_date"),
+            Sale.price.label("sale_price"),
+            func.coalesce(func.sum(Expense.amount), 0).label("total_expenses")
+        )
+        .outerjoin(
+            Expense,
+            and_(
+                Expense.animal_id == Sale.animal_id,
+                Expense.date <= Sale.sale_date
+            )
+        )
+        .group_by(Sale.id)  
+    ).subquery()
+    #THis is exactly what the above subquery does:
+    """
+    SELECT * FROM (
+    SELECT Sale.id, Sale.price, SUM(Expense.amount) AS total_expenses
+    FROM Sale LEFT JOIN Expense ...
+    GROUP BY Sale.id
+) AS per_sale
+    """
+
+    # 2) Aggregate per-sale rows into monthly stats
+    monthly_stats = (
+        db.session.query(
+            func.to_char(per_sale.c.sale_date, "YYYY-MM").label("sale_month"),
+            func.count(per_sale.c.sale_id).label("total_sales"),
+            func.sum(per_sale.c.sale_price).label("total_revenue"),
+            func.sum(per_sale.c.total_expenses).label("total_expenses"),
+            (func.sum(per_sale.c.sale_price) - func.sum(per_sale.c.total_expenses)).label("total_profit")
+        )
+        .group_by("sale_month")
+        .order_by("sale_month")
+        .all()
+    )
+
     result = [
         {
             "sale_month": stat.sale_month,
             "total_sales": stat.total_sales,
-            "total_revenue": stat.total_revenue
+            "total_revenue": float(stat.total_revenue or 0),
+            "total_expenses": float(stat.total_expenses or 0),
+            "total_profit": float(stat.total_profit or 0)
         }
         for stat in monthly_stats
     ]
-    return jsonify(result), 200     
+
+    return jsonify(result), 200
+
 
 @sales_bp.route("/stats/yearly", methods=["GET"])
 def get_yearly_sales_stats():   
     yearly_stats = db.session.query(
-        db.func.strftime("%Y", Sale.sale_date).label("sale_year"),
+        db.func.to_char(Sale.sale_date, "YYYY").label("sale_year"),
         db.func.count(Sale.id).label("total_sales"),
         db.func.sum(Sale.price).label("total_revenue")
     ).group_by("sale_year").all()
