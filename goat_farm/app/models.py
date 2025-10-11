@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date,timedelta
 from app.extensions import db
 from sqlalchemy import event
 
@@ -226,7 +226,41 @@ class Expense(db.Model):
         }
 
 
-   
+
+class Breeding(db.Model):
+    __tablename__ = "breeding_records"
+
+    id = db.Column(db.Integer, primary_key=True)
+    mating_date = db.Column(db.Date, nullable=False, default=date.today)
+    expected_kidding_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(50), nullable=False, default="Pending") # e.g., Pending, Confirmed, Completed, Failed
+
+    '''Status in this model answers the following questions:
+    -"Which of my does are pregnant right now?"
+    -"How many kids should I expect to be born next March?"
+    -"Which of my bucks had the most failed pregnancies last season?"
+    -"Which of my does have the most successful pregnancies?"
+    '''
+    
+    # Foreign Keys to the animals involved
+    doe_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
+    buck_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
+
+    # Relationships to easily access the Animal objects
+    doe = db.relationship("Animal", foreign_keys=[doe_id], backref="matings_as_doe")
+    buck = db.relationship("Animal", foreign_keys=[buck_id], backref="matings_as_buck")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "doe_id": self.doe_id,
+            "buck_id": self.buck_id,
+            "doe_tag_id": self.doe.tag_id, # Include for convenience
+            "buck_tag_id": self.buck.tag_id, # Include for convenience
+            "mating_date": self.mating_date.isoformat(),
+            "expected_kidding_date": self.expected_kidding_date.isoformat() if self.expected_kidding_date else None,
+            "status": self.status,
+        }
 
 class User(db.Model):
     __tablename__ = "users"
