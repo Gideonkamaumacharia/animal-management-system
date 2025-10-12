@@ -6,6 +6,8 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev_secret_key"
     SQLALCHEMY_DATABASE_URI = "postgresql+psycopg2://gideon:123password@localhost/goatfarm"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # CORS: comma-separated allowed origins or '*' for everything (set in production)
+    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
 
 class TestingConfig(Config):
     """Configuration for testing."""
