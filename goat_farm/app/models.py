@@ -2,6 +2,7 @@ from datetime import date,timedelta
 from app.extensions import db
 from sqlalchemy import event
 
+
 class Animal(db.Model):
     __tablename__ = "animals"
 
@@ -21,7 +22,6 @@ class Animal(db.Model):
     acquisition_date = db.Column(db.Date, nullable=True)
     acquisition_price = db.Column(db.Float, nullable=True)
     source = db.Column(db.String(100), nullable=True) 
-    # milk_yield = db.Column(db.Float, nullable=True)  # liters per day (latest or average)
     offspring_count = db.Column(db.Integer, default=0)
 
     mother_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=True)
@@ -96,9 +96,9 @@ class Treatment(db.Model):
     cost = db.Column(db.Float, nullable=True)
 
 
-    # user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    # user = db.relationship("User", backref="treatments", lazy=True)
+    user = db.relationship("User", backref="treatments", lazy=True)
 
     # animals = db.relationship("Animal", backref="treatments", lazy=True)
 
@@ -117,7 +117,7 @@ class Treatment(db.Model):
             "notes": self.notes,
             "outcome": self.outcome,
             "cost": self.cost,
-            #"treated_by": self.user_id
+            "treated_by": self.user_id
         }
     
 class Sale(db.Model):
@@ -241,7 +241,7 @@ class Breeding(db.Model):
     -"Which of my bucks had the most failed pregnancies last season?"
     -"Which of my does have the most successful pregnancies?"
     '''
-    
+
     # Foreign Keys to the animals involved
     doe_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
     buck_id = db.Column(db.Integer, db.ForeignKey("animals.id"), nullable=False)
@@ -268,10 +268,10 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
+    password = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
-    # created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    # updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())  
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())  
 
 
     def __repr__(self):
