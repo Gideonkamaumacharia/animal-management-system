@@ -16,3 +16,8 @@ venv/
 # VS Code settings (optional)
 .vscode/
 .idea/
+
+# One time delete script
+one_time_delete.py
+# Flask instance folder
+instance/                   
